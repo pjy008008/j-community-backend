@@ -1,6 +1,7 @@
 package com.pjy008008.j_community.controller;
 
 import com.pjy008008.j_community.controller.dto.AuthResponse;
+import com.pjy008008.j_community.controller.dto.ErrorResponse;
 import com.pjy008008.j_community.controller.dto.LoginRequest;
 import com.pjy008008.j_community.controller.dto.RegisterRequest;
 import com.pjy008008.j_community.entity.User;
@@ -15,6 +16,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+
+import com.pjy008008.j_community.exception.DuplicateResourceException;
+import jakarta.validation.Valid;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -36,16 +41,17 @@ public class AuthController {
     @Operation(summary = "회원가입", description = "신규 사용자의 사용자명, 비밀번호, 이메일을 받아 등록합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "회원가입 성공"),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청 (사용자 이름 또는 이메일 중복)")
+            @ApiResponse(responseCode = "400", description = "입력값 유효성 검사 실패", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "409", description = "데이터 중복 (사용자 이름 또는 이메일)", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PostMapping("/register")
-    public ResponseEntity<?> registerUser(@RequestBody RegisterRequest registerRequest) {
+    public ResponseEntity<?> registerUser(@Valid @RequestBody RegisterRequest registerRequest) {
         if (userRepository.existsByUsername(registerRequest.username())) {
-            return new ResponseEntity<>("Username is already taken!", HttpStatus.BAD_REQUEST);
+            throw new DuplicateResourceException("Username is already taken!");
         }
 
         if (userRepository.existsByEmail(registerRequest.email())) {
-            return new ResponseEntity<>("Email is already in use!", HttpStatus.BAD_REQUEST);
+            throw new DuplicateResourceException("Email is already in use!");
         }
 
         User user = User.builder()
@@ -61,31 +67,26 @@ public class AuthController {
 
     @Operation(summary = "로그인", description = "사용자 아이디와 비밀번호로 인증 후 JWT 토큰을 발급합니다.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "로그인 성공 및 JWT 토큰 발급",
-                    content = @Content(schema = @Schema(implementation = AuthResponse.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패 (유효하지 않은 아이디 또는 비밀번호)")
+            @ApiResponse(responseCode = "200", description = "로그인 성공", content = @Content(schema = @Schema(implementation = AuthResponse.class))),
+            @ApiResponse(responseCode = "401", description = "인증 실패", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PostMapping("/login")
-    public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
-        try {
-            User user = userRepository.findByEmail(loginRequest.email())
-                    .orElseThrow(() -> new AuthenticationException("Invalid email or password") {});
+    public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
+        User user = userRepository.findByEmail(loginRequest.email())
+                .orElseThrow(() -> new AuthenticationException("Invalid email or password") {
+                });
 
-            String username = user.getUsername();
+        String username = user.getUsername();
 
-            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                    username,
-                    loginRequest.password()
-            );
+        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                username,
+                loginRequest.password()
+        );
 
-            Authentication authentication = authenticationManager.authenticate(authToken);
+        Authentication authentication = authenticationManager.authenticate(authToken);
 
-            String jwt = jwtUtil.generateToken(authentication.getName());
+        String jwt = jwtUtil.generateToken(authentication.getName());
 
-            return ResponseEntity.ok(new AuthResponse(jwt));
-
-        } catch (AuthenticationException e) {
-            return new ResponseEntity<>("Invalid username or password", HttpStatus.UNAUTHORIZED);
-        }
+        return ResponseEntity.ok(new AuthResponse(jwt));
     }
 }
