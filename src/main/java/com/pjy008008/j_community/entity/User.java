@@ -1,11 +1,14 @@
 package com.pjy008008.j_community.entity;
 
+import com.pjy008008.j_community.model.Role;
 import jakarta.persistence.*;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -28,17 +31,21 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String password;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role;
+
     @Builder
-    public User(String username, String email, String password) {
+    public User(String username, String email, String password, Role role) {
         this.username = username;
         this.email = email;
         this.password = password;
+        this.role = (role != null) ? role : Role.ROLE_USER;
     }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // 모든 사용자에게 "ROLE_USER" 권한 부여. 추후 필요하다면 Role 엔티티 추가 예정
-        return Collections.singletonList(() -> "ROLE_USER");
+        return Collections.singletonList(new SimpleGrantedAuthority(this.role.name()));
     }
 
     @Override
