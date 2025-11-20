@@ -41,4 +41,10 @@ public class Community extends BaseTimeEntity {
         this.colorTheme = colorTheme;
         this.creator = creator;
     }
+
+    public void update(String name, String description, ColorTheme colorTheme) {
+        this.name = name;
+        this.description = description;
+        this.colorTheme = colorTheme;
+    }
 }
