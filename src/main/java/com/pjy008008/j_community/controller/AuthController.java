@@ -1,9 +1,6 @@
 package com.pjy008008.j_community.controller;
 
-import com.pjy008008.j_community.controller.dto.AuthResponse;
-import com.pjy008008.j_community.controller.dto.ErrorResponse;
-import com.pjy008008.j_community.controller.dto.LoginRequest;
-import com.pjy008008.j_community.controller.dto.RegisterRequest;
+import com.pjy008008.j_community.controller.dto.*;
 import com.pjy008008.j_community.entity.User;
 import com.pjy008008.j_community.model.Role;
 import com.pjy008008.j_community.repository.UserRepository;
@@ -15,6 +12,9 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -90,5 +90,29 @@ public class AuthController {
         String jwt = jwtUtil.generateToken(authentication.getName());
 
         return ResponseEntity.ok(new AuthResponse(jwt));
+    }
+
+    @Operation(summary = "회원 탈퇴", description = "비밀번호를 확인한 후 사용자와 연관된 모든 데이터를 삭제합니다. (인증 필요)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "탈퇴 성공"),
+            @ApiResponse(responseCode = "401", description = "비밀번호 불일치 또는 인증 실패", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @DeleteMapping("/withdraw")
+    public ResponseEntity<Void> withdrawUser(
+            @Valid @RequestBody WithdrawalRequest request,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        String username = userDetails.getUsername();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+            throw new AuthenticationException("Invalid password") {};
+        }
+
+        userRepository.delete(user);
+
+        return ResponseEntity.noContent().build();
     }
 }
