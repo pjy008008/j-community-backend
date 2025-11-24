@@ -2,6 +2,7 @@ package com.pjy008008.j_community.service;
 
 import com.pjy008008.j_community.controller.dto.CommentCreateRequest;
 import com.pjy008008.j_community.controller.dto.CommentResponse;
+import com.pjy008008.j_community.controller.dto.CommentUpdateRequest;
 import com.pjy008008.j_community.entity.Comment;
 import com.pjy008008.j_community.entity.Post;
 import com.pjy008008.j_community.entity.User;
@@ -11,6 +12,7 @@ import com.pjy008008.j_community.repository.PostRepository;
 import com.pjy008008.j_community.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -71,6 +73,32 @@ public class CommentService {
 
         Comment savedReply = commentRepository.save(reply);
         return CommentResponse.from(savedReply);
+    }
+
+    @Transactional
+    public CommentResponse updateComment(Long commentId, CommentUpdateRequest request, String username) {
+        Comment comment = findCommentById(commentId);
+
+        validateAuthor(comment, username);
+
+        comment.update(request.content());
+
+        return CommentResponse.from(comment);
+    }
+
+    @Transactional
+    public void deleteComment(Long commentId, String username) {
+        Comment comment = findCommentById(commentId);
+
+        validateAuthor(comment, username);
+
+        commentRepository.delete(comment);
+    }
+
+    private void validateAuthor(Comment comment, String username) {
+        if (!comment.getAuthor().getUsername().equals(username)) {
+            throw new AccessDeniedException("You are not the author of this comment.");
+        }
     }
 
     private User findUserByUsername(String username) {
