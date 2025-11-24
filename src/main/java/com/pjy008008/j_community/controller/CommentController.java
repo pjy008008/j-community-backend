@@ -2,9 +2,15 @@ package com.pjy008008.j_community.controller;
 
 import com.pjy008008.j_community.controller.dto.CommentCreateRequest;
 import com.pjy008008.j_community.controller.dto.CommentResponse;
+import com.pjy008008.j_community.controller.dto.CommentUpdateRequest;
+import com.pjy008008.j_community.controller.dto.ErrorResponse;
 import com.pjy008008.j_community.service.CommentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -56,5 +62,36 @@ public class CommentController {
     ) {
         CommentResponse reply = commentService.createReply(commentId, request, userDetails.getUsername());
         return new ResponseEntity<>(reply, HttpStatus.CREATED);
+    }
+
+    @Operation(summary = "댓글 수정", description = "자신이 작성한 댓글을 수정합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "수정 성공", content = @Content(schema = @Schema(implementation = CommentResponse.class))),
+            @ApiResponse(responseCode = "403", description = "권한 없음 (작성자 아님)", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "댓글을 찾을 수 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @PutMapping("/comments/{commentId}")
+    public ResponseEntity<CommentResponse> updateComment(
+            @PathVariable("commentId") Long commentId,
+            @Valid @RequestBody CommentUpdateRequest request,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        CommentResponse response = commentService.updateComment(commentId, request, userDetails.getUsername());
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "댓글 삭제", description = "자신이 작성한 댓글을 삭제합니다. (대댓글이 있다면 함께 삭제됩니다)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "삭제 성공"),
+            @ApiResponse(responseCode = "403", description = "권한 없음 (작성자 아님)", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "댓글을 찾을 수 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @DeleteMapping("/comments/{commentId}")
+    public ResponseEntity<Void> deleteComment(
+            @PathVariable("commentId") Long commentId,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        commentService.deleteComment(commentId, userDetails.getUsername());
+        return ResponseEntity.noContent().build();
     }
 }
