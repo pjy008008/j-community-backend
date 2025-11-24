@@ -59,6 +59,8 @@ public class SecurityConfig {
 
                         .requestMatchers(HttpMethod.GET, "/api/posts/{postId}/comments").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/posts/{postId}/comments").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/comments/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/comments/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/comments/{commentId}/replies").authenticated()
 
                         .requestMatchers(HttpMethod.DELETE, "/api/auth/withdraw").authenticated()
