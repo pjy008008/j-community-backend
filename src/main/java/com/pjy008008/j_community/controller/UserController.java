@@ -35,6 +35,26 @@ public class UserController {
         return ResponseEntity.ok(posts);
     }
 
+    @Operation(summary = "게시글 저장/취소 (토글)", description = "게시글을 보관함에 저장하거나 취소합니다. (저장됨: true, 취소됨: false 반환)")
+    @PostMapping("/me/saved-posts/{postId}")
+    public ResponseEntity<Boolean> toggleSavedPost(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable("postId") Long postId
+    ) {
+        boolean isSaved = userService.toggleSavedPost(userDetails.getUsername(), postId);
+        return ResponseEntity.ok(isSaved);
+    }
+
+    @Operation(summary = "내가 저장한 글 조회", description = "내가 저장한 게시글 목록을 페이징하여 조회합니다.")
+    @GetMapping("/me/saved-posts")
+    public ResponseEntity<Page<PostResponse>> getMySavedPosts(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @ParameterObject @PageableDefault(size = 10) Pageable pageable
+    ) {
+        Page<PostResponse> posts = userService.getMySavedPosts(userDetails.getUsername(), pageable);
+        return ResponseEntity.ok(posts);
+    }
+
     @Operation(summary = "내가 가입한 커뮤니티 조회", description = "현재 로그인한 사용자가 가입한 커뮤니티 목록을 조회합니다.")
     @GetMapping("/me/communities")
     public ResponseEntity<List<CommunityResponse>> getMyCommunities(
