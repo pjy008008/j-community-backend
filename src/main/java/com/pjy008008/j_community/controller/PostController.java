@@ -4,6 +4,7 @@ import com.pjy008008.j_community.controller.dto.ErrorResponse;
 import com.pjy008008.j_community.controller.dto.PostCreateRequest;
 import com.pjy008008.j_community.controller.dto.PostResponse;
 import com.pjy008008.j_community.controller.dto.PostUpdateRequest;
+import com.pjy008008.j_community.model.VoteType;
 import com.pjy008008.j_community.service.PostService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -41,22 +42,24 @@ public class PostController {
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    @Operation(summary = "전체 게시글 조회", description = "모든 게시글을 최신순으로 페이징하여 조회합니다.")
     @GetMapping
     public ResponseEntity<Page<PostResponse>> getAllPosts(
-            @ParameterObject @PageableDefault(size = 10, sort = "createdAt,desc") Pageable pageable
+            @ParameterObject @PageableDefault(size = 10, sort = "createdAt,desc") Pageable pageable,
+            @AuthenticationPrincipal UserDetails userDetails // 추가
     ) {
-        Page<PostResponse> posts = postService.getAllPosts(pageable);
+        String username = (userDetails != null) ? userDetails.getUsername() : null;
+        Page<PostResponse> posts = postService.getAllPosts(pageable, username);
         return ResponseEntity.ok(posts);
     }
 
-    @Operation(summary = "커뮤니티별 게시글 조회", description = "특정 커뮤니티의 게시글을 최신순으로 페이징하여 조회합니다.")
     @GetMapping("/c/{communityName}")
     public ResponseEntity<Page<PostResponse>> getPostsByCommunity(
             @PathVariable("communityName") String communityName,
-            @ParameterObject @PageableDefault(size = 10, sort = "createdAt,desc") Pageable pageable
+            @ParameterObject @PageableDefault(size = 10, sort = "createdAt,desc") Pageable pageable,
+            @AuthenticationPrincipal UserDetails userDetails // 추가
     ) {
-        Page<PostResponse> posts = postService.getPostsByCommunity(communityName, pageable);
+        String username = (userDetails != null) ? userDetails.getUsername() : null;
+        Page<PostResponse> posts = postService.getPostsByCommunity(communityName, pageable, username);
         return ResponseEntity.ok(posts);
     }
 
@@ -89,5 +92,25 @@ public class PostController {
     ) {
         postService.deletePost(id, userDetails.getUsername());
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "게시글 추천", description = "게시글을 추천(+1)하거나 취소합니다.")
+    @PostMapping("/{id}/upvote")
+    public ResponseEntity<Integer> upvotePost(
+            @PathVariable("id") Long id,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        int votes = postService.votePost(id, VoteType.UP, userDetails.getUsername());
+        return ResponseEntity.ok(votes);
+    }
+
+    @Operation(summary = "게시글 비추천", description = "게시글을 비추천(-1)하거나 취소합니다.")
+    @PostMapping("/{id}/downvote")
+    public ResponseEntity<Integer> downvotePost(
+            @PathVariable("id") Long id,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        int votes = postService.votePost(id, VoteType.DOWN, userDetails.getUsername());
+        return ResponseEntity.ok(votes);
     }
 }
